@@ -1,10 +1,29 @@
 mod tests;
 
-use num::{complex::ComplexFloat, Complex};
+use image;
+use num::Complex;
+use std::env;
+use std::fs::File;
 use std::str::FromStr;
 
 fn main() {
-    println!("Hello, world!");
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 5 {
+        eprintln!("Usage: {} FILE PIXELS UPPERLEFT LOWERRIGHT", args[0]);
+        eprintln!(
+            "Example: {} mandel.png 1000x750 - 1.20,0.35 - 1,0.20",
+            args[0]
+        );
+        std::process::exit(1);
+    }
+    let bounds = parse_pair(&args[2], 'x').expect("error parsing image dimensions");
+    let upper_left = parse_complex(&args[3]).expect("error parsing upper left corner point");
+    let lower_right = parse_complex(&args[4]).expect("error parsing lower right corner point");
+
+    let mut pixels = vec![0; bounds.0 * bounds.1];
+
+    render(&mut pixels, bounds, upper_left, lower_right);
+    write_image(&args[1], &pixels, bounds).expect("error writing PNG file");
 }
 
 fn parse_complex(s: &str) -> Option<Complex<f64>> {
@@ -83,4 +102,24 @@ fn render(
             };
         }
     }
+}
+
+/// Write the buffer 'pixels', whose dimensios are given by 'bounds', to the 'filename' file
+fn write_image(
+    filename: &str,
+    pixels: &[u8],
+    bounds: (usize, usize),
+) -> Result<(), std::io::Error> {
+    let output = File::create(filename)?;
+
+    image::save_buffer(
+        filename,
+        pixels,
+        bounds.0 as u32,
+        bounds.1 as u32,
+        image::ColorType::L8,
+    )
+    .unwrap();
+
+    Ok(())
 }
